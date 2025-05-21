@@ -1,0 +1,15 @@
+# OpenGL rendering
+PyOpenGL==3.1.6
+PyOpenGL_accelerate==3.1.6
+pyglet==2.1.6
+
+# OpenCL computation
+pyopencl==2024.1
+
+# Numerical operations
+numpy==1.26.4
+
+# Optional: GLM math utilities
+PyGLM==2.7.1
+
+
