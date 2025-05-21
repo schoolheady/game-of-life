@@ -11,5 +11,4 @@ numpy==1.26.4
 
 # Optional: GLM math utilities
 PyGLM==2.7.1
-
-
+pygame
