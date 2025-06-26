@@ -6,9 +6,15 @@ from pygame.locals import *
 from OpenGL.GL import *
 
 import shaders 
+import camera as cam
 
-VERTEX_PATH   = "shaders/vertex.GLSL"
-FRAGMENT_PATH = "shaders/fragment.GLSL"
+import glm
+
+WIDTH = 1920
+HEIGHT = 1080
+
+VERTEX_PATH   = "shaders/quad.vert"
+FRAGMENT_PATH = "shaders/grid.frag"
 
 vertices = np.array([
      0.5,  0.5, 0.0,  
@@ -18,8 +24,8 @@ vertices = np.array([
 ], dtype=np.float32)
 
 indeces = np.array([
-    0, 1, 3,
-    1, 2, 3
+    0, 1, 2,  # First triangle
+    0, 2, 3   # Second triangle
 ], dtype=np.uint32)
     
 
@@ -35,53 +41,27 @@ def check_SProgam(program):
 
 
 # function to initialize OpenGL settings
-def init(vertices=np.array([]), indeces=np.array([])):
-    # Create vertex array object
+def init():
+    # The quad.vert shader generates its own geometry, so we only need a VAO
     VAO = glGenVertexArrays(1) 
-    VBO = glGenBuffers(1)
-    EBO = glGenBuffers(1)
     glBindVertexArray(VAO)
-    ShaderProgam = shaders.Shaders(VERTEX_PATH,FRAGMENT_PATH)
-    # Create vertex buffer object
-    glBindBuffer(GL_ARRAY_BUFFER, VBO) 
-    # Fill buffer with data
-    glBufferData(GL_ARRAY_BUFFER,
-                 vertices.nbytes,
-                 vertices,
-                 GL_STATIC_DRAW)
+    ShaderProgam = shaders.Shaders(VERTEX_PATH, FRAGMENT_PATH)
     
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 indeces.nbytes, 
-                 indeces,
-                 GL_STATIC_DRAW)
-
-
-    
-    # Setup vertex attributes
-    glVertexAttribPointer(0, 3, 
-                          GL_FLOAT, GL_FALSE, 
-                          3 * vertices.itemsize, 
-                          ctypes.c_void_p(0))
-    glEnableVertexAttribArray(0)
-    
-    # Unbind to prevent accidental modification
-    glBindBuffer(GL_ARRAY_BUFFER, 0)
+    # Unbind VAO
     glBindVertexArray(0)
 
-    
-    return VAO, VBO , ShaderProgam
+    return VAO, ShaderProgam
 
-def draw(VAO , program=shaders.Shaders):
+def draw(VAO, program=shaders.Shaders):
     # Clear the screen first
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     
     # Use the shader program
     program.use()
     
-    # Bind the VAO and draw
+    # Bind the VAO and draw 6 vertices (2 triangles = 1 quad)
     glBindVertexArray(VAO)
-    glDrawElements(GL_TRIANGLES,6, GL_UNSIGNED_INT, ctypes.c_void_p(0))
+    glDrawArrays(GL_TRIANGLES, 0, 6)  # Draw 6 vertices using gl_VertexID
     
     # Unbind the VAO
     glBindVertexArray(0)
@@ -94,37 +74,59 @@ def draw(VAO , program=shaders.Shaders):
     
 def main():
     pygame.init()
-    display_surface = pygame.display.set_mode((1920, 1080), DOUBLEBUF | pygame.OPENGL)
-    # clock for frames
-    self_clock = pygame.time.Clock()
-    pygame.display.set_caption("My OpenGL Code")
     
+    # Set up the display with proper flags for keyboard input
+    display_surface = pygame.display.set_mode((WIDTH, HEIGHT), DOUBLEBUF | pygame.OPENGL)
+    pygame.event.set_grab(False)  # Don't grab input exclusively
+    pygame.key.set_repeat()  # Enable key repeat
+    
+    # clock for frames
+    clock = pygame.time.Clock()
+    pygame.display.set_caption("My OpenGL Code")
+    camera = cam.Camera(WIDTH, HEIGHT, start_pos=(0,5,0))
     # Basic OpenGL setup
-    glClearColor(1, 1, 1, 1.0)  # Set background color
+    glClearColor(1.0, 1.0, 1.0, 1.0)  # Set background color to dark teal
     glEnable(GL_DEPTH_TEST)  # Enable depth testing
     
-    # Initialize our objects
-    VAO, VBO, ShaderProgram_ = init(vertices, indeces)
+    # Initialize our objects (no vertex data needed for procedural quad)
+    VAO, ShaderProgram_ = init()
+    
+    # Initialize timing and rotation variables
+    previous_time = 0.0
+    rotation = 0.0
     
     running = True
+    print("Application started. Use WASD to move, mouse drag to pan, mouse wheel to zoom.")
+    
     while running:
-        for event in pygame.event.get():
+        dt = clock.tick(60) / 1000.0
+        
+        # Handle events - get all events once
+        events = pygame.event.get()
+        for event in events:
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                # Draw our triangle
-                if event.button == 1:
-                    draw(VAO, ShaderProgram_)
-        # Clear the screen if no mouse button is pressed
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+        
+        # Update camera with events and time
+        camera.handle_events(events)
+        camera.update(dt)
+        
+        # Use the shader program
+        ShaderProgram_.use()
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        
+        # Set camera matrices (gVP and gCameraWorldPos uniforms)
+        camera.Matrix(45, 0.1, 100.0, ShaderProgram_)
 
-        # Use the clock for timing
-        self_clock.tick(60)
-    
+        draw(VAO, ShaderProgram_)
+
     # Clean up resources
     glDeleteVertexArrays(1, [VAO])
-    glDeleteBuffers(1, [VBO])
-    glDeleteProgram(ShaderProgram_)
+    glDeleteProgram(ShaderProgram_.ID)  # Use .ID attribute
     pygame.quit()
 
 if __name__ == "__main__":
