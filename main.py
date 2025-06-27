@@ -22,6 +22,7 @@ import numpy as np
 
 import shaders           # local module
 import camera as cam      # local module
+import game               # local module
 
 
 # --------------------------------------------------------------------------- #
@@ -65,17 +66,17 @@ def create_grid_shader() -> tuple[int, shaders.Shaders]:
 # --------------------------------------------------------------------------- #
 # Draw/cleanup helpers
 # --------------------------------------------------------------------------- #
-def draw_unified_grid(vao: int, program: shaders.Shaders, game_texture: int, 
-                      game_state, grid_size: int, hover_pos: glm.ivec2, show_hover: bool) -> None:
+def draw_unified_grid(vao: int, program: shaders.Shaders, game_instance: game.Game, 
+                      hover_pos: glm.ivec2, show_hover: bool) -> None:
     """Render the unified grid with cells using the game state texture."""
     # Update game state texture
-    update_game_state_texture(game_texture, game_state, grid_size)
+    game_instance.update_texture()
     
     program.use()
     
     # Bind game state texture
     gl.glActiveTexture(gl.GL_TEXTURE0)
-    gl.glBindTexture(gl.GL_TEXTURE_2D, game_texture)
+    gl.glBindTexture(gl.GL_TEXTURE_2D, game_instance.game_texture)
     
     # Set texture uniform
     texture_loc = gl.glGetUniformLocation(program.ID, "gGameState")
@@ -85,7 +86,7 @@ def draw_unified_grid(vao: int, program: shaders.Shaders, game_texture: int,
     # Set grid size uniform
     grid_size_loc = gl.glGetUniformLocation(program.ID, "gGridSize")
     if grid_size_loc != -1:
-        gl.glUniform2i(grid_size_loc, grid_size, grid_size)
+        gl.glUniform2i(grid_size_loc, game_instance.grid_size, game_instance.grid_size)
     
     # Set hover position uniform
     hover_pos_loc = gl.glGetUniformLocation(program.ID, "gHoverPos")
@@ -110,61 +111,6 @@ def cleanup(vao: int, program: shaders.Shaders) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Game state
-# --------------------------------------------------------------------------- #
-class GameState:
-    def __init__(self):
-        self.alive_cells = set()  # Set of (x, y) tuples for alive cells
-        
-    def toggle_cell(self, grid_pos):
-        """Toggle a cell between alive and dead."""
-        pos = (grid_pos.x, grid_pos.y)
-        if pos in self.alive_cells:
-            self.alive_cells.remove(pos)
-        else:
-            self.alive_cells.add(pos)
-            
-    def is_alive(self, grid_pos):
-        """Check if a cell is alive."""
-        return (grid_pos.x, grid_pos.y) in self.alive_cells
-
-
-# --------------------------------------------------------------------------- #
-# Texture management for game state
-# --------------------------------------------------------------------------- #
-def create_game_state_texture(width: int, height: int) -> int:
-    """Create a texture to store alive/dead cell states"""
-    texture_id = gl.glGenTextures(1)
-    gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
-    
-    # Create empty texture (0 = dead, 1 = alive)
-    gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_R8UI, width, height, 0, 
-                   gl.GL_RED_INTEGER, gl.GL_UNSIGNED_BYTE, None)
-    
-    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
-    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
-    gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
-    
-    return texture_id
-
-def update_game_state_texture(texture_id: int, game_state, grid_size: int) -> None:
-    """Upload current game state to texture"""
-    # Create array representing grid (centered around 0,0)
-    grid_data = np.zeros((grid_size, grid_size), dtype=np.uint8)
-    
-    # Set alive cells (offset by grid_size/2 to handle negative coordinates)
-    offset = grid_size // 2
-    for x, y in game_state.alive_cells:
-        tex_x = x + offset
-        tex_y = y + offset
-        if 0 <= tex_x < grid_size and 0 <= tex_y < grid_size:
-            grid_data[tex_y, tex_x] = 1  # 1 = alive
-    
-    gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
-    gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, grid_size, grid_size,
-                      gl.GL_RED_INTEGER, gl.GL_UNSIGNED_BYTE, grid_data)
-# --------------------------------------------------------------------------- #
 # Main loop
 # --------------------------------------------------------------------------- #
 def run() -> None:
@@ -172,16 +118,15 @@ def run() -> None:
     init_gl()
 
     camera = cam.Camera(WIDTH, HEIGHT, start_pos=(0, 5, 0))
-    game_state = GameState()
+    game_instance = game.Game(grid_size=512)  # Create game instance
     vao, shader = create_grid_shader()  # Only need one shader now!
-    
-    # Create game state texture (512x512 grid)
-    GRID_SIZE = 512
-    game_texture = create_game_state_texture(GRID_SIZE, GRID_SIZE)
     
     clock = pygame.time.Clock()
 
-    print("WASD = move, RMB drag = pan, wheel = zoom, LMB = place/remove cell, Esc = quit.")
+    print("WASD = move, RMB drag = pan, wheel = zoom")
+    print("LMB = place/remove cell (only in START state)")
+    print("SPACE = start/pause/resume simulation, R = reset to START state, Esc = quit")
+    print(f"Current state: {game_instance.get_state_name().upper()}")
 
     running = True
     while running:
@@ -194,15 +139,34 @@ def run() -> None:
                     (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE)):
                 running = False
                 break
+            elif e.type == pygame.KEYDOWN:
+                if e.key == pygame.K_SPACE:
+                    # Toggle simulation state
+                    status = game_instance.toggle_simulation()
+                    print(f"{status} - Current state: {game_instance.get_state_name().upper()}")
+                elif e.key == pygame.K_r:
+                    # Reset the game (return to START state)
+                    game_instance.reset()
+                    print(f"Game reset - Current state: {game_instance.get_state_name().upper()}")
             elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:  # Left click
+                # Only allow cell placement/removal in START state
                 world_pos = camera.ScreentoWorld()
                 grid_pos = camera.SnapToGrid(world_pos)
-                print(f"Click: world({world_pos.x:.2f}, {world_pos.y:.2f}) -> grid({grid_pos.x}, {grid_pos.y})")
-                game_state.toggle_cell(grid_pos)
+                
+                if game_instance.can_edit_cells():
+                    was_alive = game_instance.is_alive(grid_pos)
+                    if game_instance.toggle_cell(grid_pos):
+                        action = "removed" if was_alive else "placed"
+                        print(f"Cell {action} at grid({grid_pos.x}, {grid_pos.y})")
+                else:
+                    print(f"Cannot edit cells in {game_instance.get_state_name().upper()} state - press R to reset")
 
         # ---------- camera ---------- #
         camera.handle_events(events)
         camera.update(dt)
+        
+        # ---------- game simulation ---------- #
+        game_instance.update(dt)
         
         # Set uniforms for unified shader
         camera.Matrix(FOVdeg=45, near=0.1, far=100.0, Shader=shader)
@@ -215,14 +179,14 @@ def run() -> None:
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         
         # Draw unified grid with cells
-        show_hover = not game_state.is_alive(grid_pos)  # Only show hover if cell is dead
-        draw_unified_grid(vao, shader, game_texture, game_state, GRID_SIZE, grid_pos, show_hover)
+        show_hover = not game_instance.is_alive(grid_pos)  # Only show hover if cell is dead
+        draw_unified_grid(vao, shader, game_instance, grid_pos, show_hover)
         
         pygame.display.flip()
 
     # Cleanup
     cleanup(vao, shader)
-    gl.glDeleteTextures(1, [game_texture])
+    game_instance.cleanup()
     pygame.quit()
 
 
