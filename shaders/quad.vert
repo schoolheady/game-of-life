@@ -16,7 +16,9 @@ const int Indices[6] = int[6](0,2,1,2,0,3);
 
 void main(){
     int Index = Indices[gl_VertexID];
-    vec3 vPos3 = Pos[Index] * gGridSize;
+    float dynamicGridSize = max(1000.0, gCameraWorldPos.y * 100.0);
+
+    vec3 vPos3 = Pos[Index] * dynamicGridSize;
     
     vPos3.x += gCameraWorldPos.x;
     vPos3.z += gCameraWorldPos.z;
