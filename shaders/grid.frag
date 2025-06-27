@@ -5,12 +5,13 @@ layout(location = 0) out vec4 FragColor;
 
 uniform float gGridMinPixelsBetweenCells = 2.0;
 uniform float gGridCellSize = 0.4; // Size of each grid cell
-uniform vec4 gGridColorThin = vec4(0.5, 0.5, 0.5, 1.0); // Color for thin grid lines
-uniform vec4 gGridColorThick = vec4(0.2, 0.2, 0.2, 1.0); // Color for thick grid lines
+uniform vec4 gGridColorThin = vec4(0.4, 0.45, 0.55, 1.0); // Softer grid lines - light blue-gray
+uniform vec4 gGridColorThick = vec4(0.5, 0.55, 0.65, 1.0); // Slightly lighter for contrast
 
 // NEW: Game state texture and hover
 uniform usampler2D gGameState;  // Texture containing cell states (0=dead, 1=alive)
 uniform ivec2 gGridSize;        // Size of the game grid (e.g., 512x512)
+uniform ivec2 gTextureOffset;   // Offset for infinite world texture mapping
 uniform vec2 gHoverPos;         // Mouse hover position in grid coordinates
 uniform bool gShowHover;        // Whether to show hover cell
 
@@ -31,8 +32,8 @@ void main() {
     
     // Sample game state texture
     uint cellState = 0u;
-    // Offset cellIndex to handle negative coordinates
-    ivec2 texCoord = cellIndex + gGridSize / 2;
+    // Use the texture offset to map grid coordinates to texture coordinates
+    ivec2 texCoord = cellIndex + gTextureOffset;
     if (texCoord.x >= 0 && texCoord.x < gGridSize.x && 
         texCoord.y >= 0 && texCoord.y < gGridSize.y) {
         cellState = texelFetch(gGameState, texCoord, 0).r;
@@ -58,8 +59,8 @@ void main() {
         
         if (cellLocalPos.x > adaptivePadding && cellLocalPos.x < (1.0 - adaptivePadding) &&
             cellLocalPos.y > adaptivePadding && cellLocalPos.y < (1.0 - adaptivePadding)) {
-            // Alive cell - bright cyan (only in center area)
-            Color = mix(Color, vec4(0.0, 1.0, 1.0, 1.0), 0.8);
+            // Alive cell - warm orange-yellow for better eye comfort
+            Color = mix(Color, vec4(1.0, 0.7, 0.3, 1.0), 0.9);
         }
     } else if (isHoverCell) {
         // Check if we're in the center of the cell for hover too
@@ -71,8 +72,8 @@ void main() {
         
         if (cellLocalPos.x > adaptivePadding && cellLocalPos.x < (1.0 - adaptivePadding) &&
             cellLocalPos.y > adaptivePadding && cellLocalPos.y < (1.0 - adaptivePadding)) {
-            // Hover cell - semi-transparent blue (only in center area)
-            Color = mix(Color, vec4(0.0, 0.5, 1.0, 0.6), 0.5);
+            // Hover cell - soft green for pleasant preview
+            Color = mix(Color, vec4(0.4, 0.8, 0.5, 0.7), 0.6);
         }
     }
 
