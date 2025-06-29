@@ -34,10 +34,7 @@ class Game:
         
     def toggle_cell(self, grid_pos: glm.ivec2) -> bool:
         """Toggle a cell between alive and dead"""
-        result = self.cell_population.toggle_cell_at(grid_pos)
-        print(f"DEBUG: Toggled cell at ({grid_pos.x}, {grid_pos.y}), alive={result}")
-        print(f"DEBUG: Current texture offset: ({self.texture_offset_x}, {self.texture_offset_y})")
-        return result
+        return self.cell_population.toggle_cell_at(grid_pos)
             
     def is_alive(self, grid_pos: glm.ivec2) -> bool:
         """Check if a cell is alive."""

@@ -52,14 +52,6 @@ class Shaders:
     def use(self):
         glUseProgram(self.ID)
 
-    def setbool(self, name=str, value=bool):
-        glUniform1i(glGetUniformLocation(self.ID, name), value)
-    def SetINT(self ,name=str, value=str):
-        glUniform1i(glGetUniformLocation(self.ID, name), value)
-    def setFLOAT(self, name=str, value=float):
-        glUniform1f(glGetUniformLocation(self.ID, name), value); 
-
-    
 
 
     
