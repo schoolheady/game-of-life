@@ -16,9 +16,7 @@ import renderer
 import input_handler
 
 
-class GameOfLifeApp:
-    """Main application class that coordinates all components."""
-    
+class GameOfLifeApp:   
     def __init__(self, width: int = 1920, height: int = 1080):
         self.width = width
         self.height = height
@@ -39,27 +37,23 @@ class GameOfLifeApp:
         )
         self.input_handler = input_handler.InputHandler(self.game, self.camera)
         
-        # Timing
         self.clock = pygame.time.Clock()
         
         self._print_controls()
     
     def _init_pygame(self) -> None:
-        """Initialize Pygame and create window."""
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height), DOUBLEBUF | OPENGL)
         pygame.display.set_caption("Conway's Game of Life - Interactive")
     
     def _init_opengl(self) -> None:
-        """Initialize OpenGL settings."""
-        # Dark background that's easier on the eyes
+        # background color
         gl.glClearColor(0.15, 0.18, 0.25, 1.0)
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
     
     def _print_controls(self) -> None:
-        """Print control instructions."""
         print("Conway's Game of Life - Interactive")
         print("=" * 40)
         print("WASD = move, RMB drag = pan, wheel = zoom")
@@ -69,7 +63,7 @@ class GameOfLifeApp:
         print("=" * 40)
     
     def run(self) -> None:
-        """Main application loop."""
+        # Main application loop.
         running = True
         
         while running:
@@ -104,7 +98,6 @@ class GameOfLifeApp:
         self.renderer.set_camera_uniforms(self.camera)
     
     def _render(self) -> None:
-        """Render the current frame."""
         # Get hover information
         hover_pos, show_hover = self.input_handler.get_hover_info()
         
@@ -112,17 +105,10 @@ class GameOfLifeApp:
         self.renderer.render_frame(self.game, hover_pos, show_hover)
     
     def _cleanup(self) -> None:
-        """Clean up resources."""
         self.renderer.cleanup()
         self.game.cleanup()
         pygame.quit()
 
 
-def main() -> None:
-    """Entry point for the application."""
-    app = GameOfLifeApp()
-    app.run()
 
 
-if __name__ == "__main__":
-    main()

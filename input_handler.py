@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Input handler for Game of Life controls.
-"""
 from __future__ import annotations
 
 import pygame
@@ -10,18 +7,13 @@ import glm
 import game
 
 
-class InputHandler:
-    """Handles all user input for the Game of Life application."""
-    
+class InputHandler:    
     def __init__(self, game_instance: game.Game, camera):
         self.game = game_instance
         self.camera = camera
         
     def handle_events(self, events) -> bool:
-        """
-        Process all input events.
-        Returns False if application should quit, True otherwise.
-        """
+#
         for event in events:
             if self._should_quit(event):
                 return False
@@ -39,7 +31,7 @@ class InputHandler:
                 (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE))
     
     def _handle_keyboard(self, event) -> None:
-        """Handle keyboard input events."""
+        # Handle keyboard input events.
         if event.key == pygame.K_SPACE:
             status = self.game.toggle_simulation()
             print(f"{status} - Current state: {self.game.get_state_name().upper()}")
@@ -48,7 +40,7 @@ class InputHandler:
             print(f"Game reset - Current state: {self.game.get_state_name().upper()}")
     
     def _handle_mouse_click(self) -> None:
-        """Handle mouse click for cell placement/removal."""
+        # Handle mouse click for cell placement/removal
         world_pos = self.camera.ScreentoWorld()
         grid_pos = self.camera.SnapToGrid(world_pos)
         
@@ -59,7 +51,7 @@ class InputHandler:
             print(f"Cell {action} at grid({grid_pos.x}, {grid_pos.y}){state_info}")
     
     def get_hover_info(self) -> tuple[glm.ivec2, bool]:
-        """Get current hover position and whether to show hover preview."""
+        # Get current hover position and whether to show hover preview
         world_pos = self.camera.ScreentoWorld()
         grid_pos = self.camera.SnapToGrid(world_pos)
         show_hover = not self.game.is_alive(grid_pos)

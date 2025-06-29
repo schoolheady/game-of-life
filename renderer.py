@@ -13,7 +13,7 @@ import game
 
 
 class Renderer:
-    """Handles all OpenGL rendering operations for the Game of Life."""
+    """Handles OpenGL rendering operations for the Game of Life."""
     
     def __init__(self, grid_vert_path, grid_frag_path):
         self.vao, self.shader = self._create_grid_shader(grid_vert_path, grid_frag_path)
